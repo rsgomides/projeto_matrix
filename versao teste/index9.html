@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MATRIX IMPACT HUB</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@700&display=swap');
+
+        :root {
+            --green: #00ff41;
+            --red: #ff003c;
+            --blue: #00f0ff;
+            --bg: #050505;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        html { scroll-behavior: smooth; }
+
+        body {
+            background: var(--bg);
+            color: var(--green);
+            font-family: 'Share Tech Mono', monospace;
+            overflow-y: auto;
+            overflow-x: hidden;
+            min-height: 100vh;
+            width: 100vw;
+        }
+
+        /* =========================================
+           VÍDEO DE FUNDO E OVERLAY
+           ========================================= */
+        #bg-video {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+            z-index: 0;
+            opacity: 0.4;
+        }
+
+        .video-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at center, rgba(5,5,5,0.4) 0%, rgba(5,5,5,0.95) 100%);
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        /* =========================================
+           CONTEÚDO PRINCIPAL
+           ========================================= */
+        .hub-container {
+            position: relative;
+            z-index: 10;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem 1rem;
+        }
+
+        .scene {
+            display: none;
+            text-align: center;
+            width: 100%;
+            max-width: 1000px;
+            animation: fadeIn 0.8s ease-out;
+            padding: 1rem 0;
+        }
+        .scene.active { display: block; }
+
+        /* Botão Voltar no topo */
+        .back-top-btn {
+            position: absolute;
+            top: 1rem;
+            left: 1rem;
+            background: rgba(0,0,0,0.7);
+            border: 1px solid var(--green);
+            color: var(--green);
+            padding: 0.6rem 1.2rem;
+            cursor: pointer;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s;
+            z-index: 20;
+            backdrop-filter: blur(5px);
+        }
+        .back-top-btn:hover {
+            background: var(--green);
+            color: #000;
+            box-shadow: 0 0 15px var(--green);
+        }
+
+        /* Imagens de Impacto */
+        .impact-frame {
+            position: relative;
+            margin: 0 auto 1.5rem;
+            max-width: 90%;
+            max-height: 45vh;
+            border: 1px solid var(--green);
+            box-shadow: 0 0 30px rgba(0,255,65,0.15);
+            overflow: hidden;
+            background: #000;
+        }
+        .impact-frame img {
+            width: 100%;
+            height: auto;
+            max-height: 45vh;
+            object-fit: cover;
+            display: block;
+            filter: grayscale(100%) contrast(1.2);
+            transition: all 0.5s;
+        }
+        .impact-frame:hover img { filter: grayscale(0%) contrast(1); }
+
+        /* Modificador: mostra a imagem inteira sem cortar (usar quando
+           a composição importa, como a foto do mentor com as pílulas) */
+        .impact-frame.full-img {
+            max-height: 60vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+        }
+        .impact-frame.full-img img {
+            height: 100%;
+            max-height: 60vh;
+            object-fit: contain;
+        }
+
+        /* Modificador: personagem recortado (PNG com fundo transparente),
+           sem moldura nem caixa — só a figura flutuando sobre o fundo Matrix */
+        .impact-frame.mentor-cutout {
+            border: none;
+            background: none;
+            box-shadow: none;
+            overflow: visible;
+            max-height: 60vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+        }
+        .impact-frame.mentor-cutout img {
+            height: 100%;
+            max-height: 60vh;
+            width: auto;
+            max-width: 100%;
+            object-fit: contain;
+            background: none;
+            filter: drop-shadow(0 0 25px rgba(0,255,65,0.35));
+            transition: filter 0.5s;
+        }
+        .impact-frame.mentor-cutout:hover img {
+            filter: drop-shadow(0 0 40px rgba(0,255,65,0.55));
+        }
+
+        /* Tipografia */
+        h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: clamp(1.5rem, 4vw, 3.5rem);
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 1rem;
+            text-shadow: 0 0 15px var(--green), 0 0 30px rgba(0,255,65,0.5);
+            color: #fff;
+            padding: 0 1rem;
+        }
+
+        /* Título da Cena 1 é maior por ser duas linhas — reduzido
+           para não dominar a tela */
+        #scene-intro h1 {
+            font-size: clamp(1.1rem, 2.6vw, 2.2rem);
+            margin-bottom: 0.3rem;
+        }
+        #scene-intro h1:last-of-type {
+            margin-bottom: 1rem;
+        }
+
+        /* Typewriter — sempre quebra linha, nunca corta texto */
+        .typewriter {
+            font-size: clamp(0.9rem, 2vw, 1.4rem);
+            line-height: 1.6;
+            min-height: 2.5em;
+            color: #ccc;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin: 0 auto 1.5rem;
+            padding: 0 1rem;
+            max-width: 90%;
+            text-align: center;
+        }
+        .typewriter .cursor {
+            display: inline-block;
+            width: .5ch;
+            background: var(--green);
+            margin-left: 2px;
+            animation: blinkCursor 0.7s step-end infinite;
+            color: transparent;
+        }
+
+        /* Pílulas Interativas */
+        .pills-wrapper {
+            display: flex;
+            gap: 2rem;
+            justify-content: center;
+            margin-top: 1.5rem;
+            flex-wrap: wrap;
+            padding: 0 1rem;
+        }
+
+        .pill {
+            background: transparent;
+            border: 2px solid;
+            padding: 1.2rem 2rem;
+            font-family: 'Orbitron', sans-serif;
+            font-size: clamp(0.9rem, 1.8vw, 1.2rem);
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            position: relative;
+            overflow: hidden;
+            color: #fff;
+            min-width: 180px;
+        }
+
+        .pill::before {
+            content: ''; position: absolute;
+            top: 50%; left: 50%;
+            width: 0; height: 0;
+            background: currentColor;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+            z-index: -1; opacity: 0.2;
+        }
+        .pill:hover::before { width: 300px; height: 300px; }
+
+        .pill-red { 
+            color: var(--red); border-color: var(--red);
+            box-shadow: 0 0 20px rgba(255,0,60,0.2);
+        }
+        .pill-red:hover { 
+            background: var(--red); color: #000; 
+            box-shadow: 0 0 40px var(--red); transform: scale(1.05);
+        }
+
+        .pill-blue { 
+            color: var(--blue); border-color: var(--blue);
+            box-shadow: 0 0 20px rgba(0,240,255,0.2);
+        }
+        .pill-blue:hover { 
+            background: var(--blue); color: #000; 
+            box-shadow: 0 0 40px var(--blue); transform: scale(1.05);
+        }
+
+        /* Botão de ação neutro (ex: "Iniciar Sequência") — não deve
+           usar a cor de uma das pílulas reais, para não confundir o
+           usuário antes da escolha de verdade */
+        .pill-start {
+            color: var(--green); border-color: var(--green);
+            box-shadow: 0 0 20px rgba(0,255,65,0.2);
+        }
+        .pill-start:hover {
+            background: var(--green); color: #000;
+            box-shadow: 0 0 40px var(--green); transform: scale(1.05);
+        }
+
+        /* Painéis de Revelação */
+        .reveal-panel {
+            display: none;
+            margin-top: 1.5rem;
+            padding: 1.5rem;
+            border: 1px solid;
+            background: rgba(0,0,0,0.9);
+            backdrop-filter: blur(10px);
+            transform: translateY(30px);
+            opacity: 0;
+            transition: opacity 0.6s ease, transform 0.6s ease;
+            max-width: 800px;
+            margin-left: auto; margin-right: auto;
+            max-height: 50vh;
+            overflow-y: auto;
+        }
+        .reveal-panel.active { display: block; }
+        .reveal-panel.show { transform: translateY(0); opacity: 1; }
+        
+        .reveal-panel.illusion { border-color: var(--blue); }
+        .reveal-panel.reality { border-color: var(--red); }
+
+        .reveal-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: clamp(1.2rem, 2.5vw, 2rem);
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            position: sticky;
+            top: 0;
+            background: rgba(0,0,0,0.95);
+            padding: 0.5rem 0;
+        }
+        .reveal-panel.illusion .reveal-title { color: var(--blue); text-shadow: 0 0 10px var(--blue); }
+        .reveal-panel.reality .reveal-title { color: var(--red); text-shadow: 0 0 10px var(--red); }
+
+        .reveal-counter {
+            display: block;
+            font-size: 0.6em;
+            opacity: 0.6;
+            letter-spacing: 1px;
+            margin-top: 0.3rem;
+            text-shadow: none;
+        }
+
+        .reveal-content {
+            font-size: clamp(0.95rem, 1.8vw, 1.3rem);
+            line-height: 1.8;
+            color: #ddd;
+            text-align: left;
+        }
+        .reveal-content p { margin-bottom: 1rem; }
+
+        /* Botão Resetar */
+        .back-btn {
+            margin-top: 1.5rem;
+            background: transparent;
+            border: 1px solid #555;
+            color: #888;
+            padding: 0.8rem 2rem;
+            cursor: pointer;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 1rem;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .back-btn:hover { border-color: var(--green); color: var(--green); box-shadow: 0 0 15px rgba(0,255,65,0.2); }
+
+        /* Animações */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes blinkCursor { 50% { opacity: 0; } }
+        
+        .glitch-transition { animation: glitchAnim 0.4s cubic-bezier(.25, .46, .45, .94) both; }
+        @keyframes glitchAnim {
+            0% { transform: translate(0); filter: hue-rotate(0deg); }
+            20% { transform: translate(-5px, 5px); filter: hue-rotate(90deg); }
+            40% { transform: translate(-5px, -5px); filter: hue-rotate(180deg); }
+            60% { transform: translate(5px, 5px); filter: hue-rotate(270deg); }
+            80% { transform: translate(5px, -5px); filter: hue-rotate(360deg); }
+            100% { transform: translate(0); filter: hue-rotate(0deg); }
+        }
+
+        /* Scrollbar personalizada */
+        .reveal-panel::-webkit-scrollbar { width: 6px; }
+        .reveal-panel::-webkit-scrollbar-track { background: rgba(0,0,0,0.5); }
+        .reveal-panel::-webkit-scrollbar-thumb { background: var(--green); border-radius: 3px; }
+
+        /* =========================================
+           RESPONSIVIDADE
+           ========================================= */
+
+        /* Tablets e notebooks pequenos */
+        @media (max-width: 768px) {
+            .hub-container { padding: 1rem 0.5rem; }
+            .pills-wrapper { flex-direction: column; gap: 1rem; align-items: center; }
+            .pill { width: 100%; max-width: 300px; }
+            .impact-frame { max-width: 95%; max-height: 35vh; }
+            .impact-frame img { max-height: 35vh; }
+            .typewriter {
+                font-size: clamp(0.85rem, 2.5vw, 1.2rem);
+            }
+            .back-top-btn { top: 0.5rem; left: 0.5rem; padding: 0.5rem 0.8rem; font-size: 0.8rem; }
+            .reveal-panel { max-height: 60vh; padding: 1rem; }
+        }
+
+        /* Celulares */
+        @media (max-width: 480px) {
+            h1 { font-size: 1.3rem; letter-spacing: 2px; }
+            .reveal-title { font-size: 1.1rem; }
+            .pill { padding: 1rem 1.5rem; font-size: 0.9rem; }
+            .typewriter { font-size: 0.9rem; }
+        }
+
+        /* Projetores 4K e telas muito altas */
+        @media (min-height: 1000px) {
+            .impact-frame { max-height: 50vh; }
+            .impact-frame img { max-height: 50vh; }
+        }
+
+        /* Respeita usuários que desativam animações no sistema */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- =========================================
+         VÍDEO DE FUNDO
+         ========================================= -->
+    <!-- EDIT: "poster" aparece enquanto o vídeo carrega (evita tela preta).
+         Salve um frame do seu vídeo, ou uma das imagens do mentor, como
+         "matrix-poster.jpg" na mesma pasta deste HTML. -->
+    <video id="bg-video" autoplay muted loop playsinline poster="matrix-poster.jpg">
+        <source src="matrix-bg.mp4" type="video/mp4">
+    </video>
+
+    <div class="video-overlay"></div>
+
+    <!-- =========================================
+         ÁUDIO DE FUNDO — CENA 1
+         EDIT: coloque o arquivo "intro-music.mp3" (ou .ogg/.wav)
+         na mesma pasta deste HTML.
+         ========================================= -->
+    <audio id="intro-music" loop preload="auto">
+        <source src="intro-music.mp3" type="audio/mpeg">
+    </audio>
+
+    <!-- =========================================
+         CONTEÚDO DA APRESENTAÇÃO
+         ========================================= -->
+    <div class="hub-container">
+        
+        <!-- CENA 1: INTRODUÇÃO -->
+        <div id="scene-intro" class="scene active">
+            <!-- EDIT: usa o arquivo "morpheus-dialogue" (.jpg/.png/.webp),
+                 o mesmo mentor da tela de escolha, na mesma pasta do HTML. -->
+            <div class="impact-frame mentor-cutout">
+                <img id="img-intro" alt="O Mentor">
+            </div>
+            <h1>BEM-VINDO</h1>
+            <h1>AO PARADOXO DA REALIDADE</h1>
+            <div class="typewriter" id="intro-text"></div>
+            <button class="pill pill-start" onclick="goToScene('scene-choice')">DESCULBRA!!!</button>
+        </div>
+
+        <!-- CENA 2: ESCOLHA -->
+        <div id="scene-choice" class="scene">
+            <!-- BOTÃO VOLTAR -->
+            <button class="back-top-btn" onclick="goToScene('scene-intro')">← VOLTAR</button>
+            
+            <!-- EDIT: coloque o arquivo "morpheus-pills" (.jpg/.png/.webp)
+                 gerado via IA na mesma pasta deste HTML. -->
+            <div class="impact-frame mentor-cutout" id="choice-frame">
+                <img id="img-choice" alt="O Mentor segurando as pílulas azul e vermelha">
+            </div>
+            <h1>A ESCOLHA É SUA</h1>
+            <div class="typewriter" id="choice-text"></div>
+            
+            <div class="pills-wrapper">
+                <button class="pill pill-blue" onclick="reveal('illusion')">
+                    PÍLULA AZUL<br><small style="font-size:0.7em;opacity:0.7;display:block;margin-top:5px;">A ILUSÃO CONFORTÁVEL</small>
+                </button>
+                <button class="pill pill-red" onclick="reveal('reality')">
+                    PÍLULA VERMELHA<br><small style="font-size:0.7em;opacity:0.7;display:block;margin-top:5px;">A REALIDADE CRUA</small>
+                </button>
+            </div>
+
+            <!-- PAINEL ILUSÃO (Azul) -->
+            <div id="panel-illusion" class="reveal-panel illusion">
+                <div class="reveal-title">💊 A ILUSÃO <span class="reveal-counter" id="counter-illusion"></span></div>
+                <div class="reveal-content" id="content-illusion"></div>
+            </div>
+
+            <!-- PAINEL REALIDADE (Vermelha) -->
+            <div id="panel-reality" class="reveal-panel reality">
+                <div class="reveal-title">💊 A REALIDADE <span class="reveal-counter" id="counter-reality"></span></div>
+                <div class="reveal-content" id="content-reality"></div>
+            </div>
+
+            <button class="back-btn" onclick="resetHub()">↺ RESETAR SIMULAÇÃO</button>
+        </div>
+
+    </div>
+
+<script>
+// ==========================================
+// CONFIGURAÇÃO DE TEXTOS
+// ==========================================
+const CONFIG = {
+    introText: "Você está aqui porque sabe algo. Você sente que há algo errado. Hoje, vamos explorar duas perspectivas...",
+    choiceText: "Pílula Azul: acorde e acredite no que quiser. Pílula Vermelha: veja quão fundo vai a toca do coelho.",
+    typingSpeed: 40
+};
+
+// ==========================================
+// CARREGADOR ROBUSTO DE IMAGENS
+// Tenta várias extensões (muitos geradores de IA salvam
+// como .png mesmo quando você pede .jpg) e, se nenhuma
+// funcionar, mostra um aviso visível em vez de sumir
+// silenciosamente — assim dá pra diagnosticar o problema.
+// ==========================================
+function loadImageWithFallback(imgId, baseName, extensions = ['jpg','jpeg','png','webp']) {
+    const img = document.getElementById(imgId);
+    if (!img) return;
+    let i = 0;
+    img.onerror = function () {
+        i++;
+        if (i < extensions.length) {
+            img.src = `${baseName}.${extensions[i]}`;
+        } else {
+            const frame = img.closest('.impact-frame');
+            if (frame) {
+                frame.innerHTML = `<div style="padding:2rem;color:#ff003c;font-size:0.9rem;line-height:1.6;">
+                    ⚠️ IMAGEM NÃO ENCONTRADA<br>
+                    <span style="color:#888;">Esperado: ${baseName}.(jpg/png/webp) na mesma pasta do HTML</span>
+                </div>`;
+                frame.style.border = '1px dashed #ff003c';
+                frame.style.background = 'rgba(255,0,60,0.05)';
+            }
+        }
+    };
+    img.src = `${baseName}.${extensions[0]}`;
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    loadImageWithFallback('img-intro', 'morpheus-dialogue');
+    loadImageWithFallback('img-choice', 'morpheus-pills');
+});
+
+// ==========================================
+// MÚSICA DE FUNDO — CENA 1
+// Navegadores bloqueiam áudio com som antes de qualquer
+// interação do usuário. Tentamos tocar direto; se for
+// bloqueado, tocamos assim que o usuário clicar em
+// qualquer lugar (mas só se ainda estiver na Cena 1).
+// ==========================================
+const introMusic = document.getElementById('intro-music');
+introMusic.volume = 0.5;
+
+function tryPlayIntroMusic() {
+    introMusic.play().catch(() => {
+        // Autoplay bloqueado — vai tocar no primeiro clique (ver abaixo)
+    });
+}
+
+document.addEventListener('click', function () {
+    if (introMusic.paused && document.getElementById('scene-intro').classList.contains('active')) {
+        tryPlayIntroMusic();
+    }
+}, { once: false });
+
+// ==========================================
+// TEXTOS DAS PÍLULAS (até 10 cada)
+// A cada clique na mesma pílula, avança para o próximo
+// texto da lista. Ao chegar no último, volta para o
+// primeiro (loop). Para adicionar/editar, é só mexer
+// nos arrays abaixo — não precisam ter exatamente 10,
+// pode ter só 3, 5, o quanto quiser.
+// ==========================================
+const illusionTexts = [
+    `<p>📊 "O mercado sempre sobe no longo prazo."</p>
+     <p>"Basta trabalhar duro que o sucesso vem."</p>
+     <p>⚠️ <em>(Dados superficiais, mitos populares, narrativas confortáveis)</em></p>`,
+
+    `<p><!-- EDIT: texto 2 da pílula azul --></p>`,
+    `<p><!-- EDIT: texto 3 da pílula azul --></p>`,
+    `<p><!-- EDIT: texto 4 da pílula azul --></p>`,
+    `<p><!-- EDIT: texto 5 da pílula azul --></p>`,
+    `<p><!-- EDIT: texto 6 da pílula azul --></p>`,
+    `<p><!-- EDIT: texto 7 da pílula azul --></p>`,
+    `<p><!-- EDIT: texto 8 da pílula azul --></p>`,
+    `<p><!-- EDIT: texto 9 da pílula azul --></p>`,
+    `<p><!-- EDIT: texto 10 da pílula azul --></p>`
+];
+
+const realityTexts = [
+    `<p>📉 "70% dos traders perdem dinheiro nos primeiros 2 anos."</p>
+     <p>🔍 "Sucesso = Estratégia + Timing + Resiliência, não apenas esforço."</p>
+     <p>✅ <em>(Dados reais, verdades inconvenientes, insights acionáveis)</em></p>`,
+
+    `<p><!-- EDIT: texto 2 da pílula vermelha --></p>`,
+    `<p><!-- EDIT: texto 3 da pílula vermelha --></p>`,
+    `<p><!-- EDIT: texto 4 da pílula vermelha --></p>`,
+    `<p><!-- EDIT: texto 5 da pílula vermelha --></p>`,
+    `<p><!-- EDIT: texto 6 da pílula vermelha --></p>`,
+    `<p><!-- EDIT: texto 7 da pílula vermelha --></p>`,
+    `<p><!-- EDIT: texto 8 da pílula vermelha --></p>`,
+    `<p><!-- EDIT: texto 9 da pílula vermelha --></p>`,
+    `<p><!-- EDIT: texto 10 da pílula vermelha --></p>`
+];
+
+let illusionIndex = 0;
+let realityIndex = 0;
+
+// ==========================================
+// GERENCIAMENTO DO VÍDEO DE FUNDO
+// ==========================================
+const video = document.getElementById('bg-video');
+
+const playPromise = video.play();
+if (playPromise !== undefined) {
+    playPromise.catch(() => {
+        console.log('Autoplay bloqueado pelo navegador.');
+    });
+}
+
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        video.pause();
+    } else {
+        video.play();
+    }
+});
+
+// ==========================================
+// EFEITO DE DIGITAÇÃO (TYPEWRITER)
+// ==========================================
+function typeWriter(elementId, text, speed = CONFIG.typingSpeed) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    el.textContent = '';
+    let i = 0;
+    function type() {
+        if (i < text.length) {
+            el.textContent = text.slice(0, i + 1);
+            i++;
+            setTimeout(type, speed);
+        } else {
+            el.innerHTML = text + '<span class="cursor">|</span>';
+        }
+    }
+    type();
+}
+
+// ==========================================
+// NAVEGAÇÃO DE CENAS
+// ==========================================
+function goToScene(sceneId) {
+    document.querySelectorAll('.scene').forEach(s => s.classList.remove('active'));
+    const target = document.getElementById(sceneId);
+    if(target) {
+        target.classList.add('active');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    
+    if (sceneId === 'scene-intro') {
+        setTimeout(() => typeWriter('intro-text', CONFIG.introText), 500);
+        tryPlayIntroMusic();
+    } else if (sceneId === 'scene-choice') {
+        setTimeout(() => typeWriter('choice-text', CONFIG.choiceText), 500);
+        introMusic.pause();
+        introMusic.currentTime = 0;
+    }
+}
+
+// ==========================================
+// REVELAÇÃO COM GLITCH
+// ==========================================
+function reveal(type) {
+    document.getElementById('panel-illusion').classList.remove('show', 'active');
+    document.getElementById('panel-reality').classList.remove('show', 'active');
+    
+    document.body.classList.add('glitch-transition');
+    setTimeout(() => document.body.classList.remove('glitch-transition'), 400);
+    
+    setTimeout(() => {
+        const panel = document.getElementById(`panel-${type}`);
+        const contentEl = document.getElementById(`content-${type}`);
+        const counterEl = document.getElementById(`counter-${type}`);
+        const texts = type === 'illusion' ? illusionTexts : realityTexts;
+
+        const currentIndex = type === 'illusion' ? illusionIndex : realityIndex;
+        contentEl.innerHTML = texts[currentIndex];
+        counterEl.textContent = `${currentIndex + 1} / ${texts.length}`;
+
+        const nextIndex = (currentIndex + 1) % texts.length;
+        if (type === 'illusion') illusionIndex = nextIndex;
+        else realityIndex = nextIndex;
+
+        if(panel) {
+            panel.classList.add('active');
+            requestAnimationFrame(() => panel.classList.add('show'));
+            setTimeout(() => {
+                panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 200);
+        }
+    }, 300);
+}
+
+function resetHub() {
+    document.getElementById('panel-illusion').classList.remove('show', 'active');
+    document.getElementById('panel-reality').classList.remove('show', 'active');
+    illusionIndex = 0;
+    realityIndex = 0;
+    goToScene('scene-intro');
+}
+
+// ==========================================
+// INICIALIZAÇÃO
+// ==========================================
+window.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => typeWriter('intro-text', CONFIG.introText), 800);
+    tryPlayIntroMusic();
+});
+</script>
+</body>
+</html>

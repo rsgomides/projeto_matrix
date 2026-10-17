@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MATRIX IMPACT HUB</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --green: #00ff41;
+            --red: #ff003c;
+            --blue: #00f0ff;
+            --bg: #050505;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            background: var(--bg);
+            color: var(--green);
+            font-family: 'Share Tech Mono', monospace;
+            overflow-y: auto;
+            overflow-x: hidden;
+            min-height: 100vh;
+            min-height: 100dvh;
+            width: 100%;
+        }
+
+        /* Esconde o cursor após alguns segundos parado (modo apresentação) */
+        body.idle, body.idle * { cursor: none !important; }
+
+        button:focus-visible {
+            outline: 2px solid var(--blue);
+            outline-offset: 3px;
+        }
+
+        /* =========================================
+           FUNDO: CHUVA DE CÓDIGO (CANVAS)
+           ========================================= */
+        #matrix-rain {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            opacity: 0.55;
+        }
+
+        .video-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at center, rgba(5,5,5,0.4) 0%, rgba(5,5,5,0.95) 100%);
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        /* Cortina de vídeo temático */
+        .video-curtain {
+            position: fixed;
+            inset: 0;
+            z-index: 20;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            transform: translateY(100%);
+            transition: transform 1s cubic-bezier(.65,0,.35,1);
+            pointer-events: none;
+        }
+        .video-curtain.active {
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+        .video-curtain video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .skip-btn {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            z-index: 2;
+            background: rgba(0,0,0,0.6);
+            border: 1px solid #888;
+            color: #ddd;
+            padding: 0.5rem 1.1rem;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .skip-btn:hover { border-color: var(--green); color: var(--green); box-shadow: 0 0 15px rgba(0,255,65,0.3); }
+
+        /* =========================================
+           CONTROLES FIXOS (mudo / tela cheia / dicas)
+           ========================================= */
+        .hud {
+            position: fixed;
+            right: 1rem;
+            bottom: 1rem;
+            z-index: 30;
+            display: flex;
+            gap: 0.5rem;
+        }
+        .hud button {
+            background: rgba(0,0,0,0.7);
+            border: 1px solid #555;
+            color: #bbb;
+            width: 2.6rem;
+            height: 2.6rem;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            backdrop-filter: blur(5px);
+        }
+        .hud button:hover { border-color: var(--green); color: var(--green); box-shadow: 0 0 12px rgba(0,255,65,0.3); }
+
+        .kbd-hint {
+            position: fixed;
+            left: 1rem;
+            bottom: 1rem;
+            z-index: 15;
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+            color: #888;
+            pointer-events: none;
+        }
+
+        /* =========================================
+           CONTEÚDO PRINCIPAL
+           ========================================= */
+        .hub-container {
+            position: relative;
+            z-index: 10;
+            min-height: 100vh;
+            min-height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem 1rem;
+        }
+
+        .scene {
+            display: none;
+            text-align: center;
+            width: 100%;
+            max-width: 1000px;
+            animation: fadeIn 0.8s ease-out;
+            padding: 1rem 0;
+        }
+        .scene.active { display: block; }
+
+        .back-top-btn {
+            position: absolute;
+            top: 1rem;
+            left: 1rem;
+            background: rgba(0,0,0,0.7);
+            border: 1px solid var(--green);
+            color: var(--green);
+            padding: 0.6rem 1.2rem;
+            cursor: pointer;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s;
+            z-index: 20;
+            backdrop-filter: blur(5px);
+        }
+        .back-top-btn:hover {
+            background: var(--green);
+            color: #000;
+            box-shadow: 0 0 15px var(--green);
+        }
+
+        /* Imagens de Impacto */
+        .impact-frame {
+            position: relative;
+            margin: 0 auto 1.5rem;
+            max-width: 90%;
+            max-height: 45vh;
+            border: 1px solid var(--green);
+            box-shadow: 0 0 30px rgba(0,255,65,0.15);
+            overflow: hidden;
+            background: #000;
+        }
+        .impact-frame img {
+            width: 100%;
+            height: auto;
+            max-height: 45vh;
+            object-fit: cover;
+            display: block;
+            filter: grayscale(100%) contrast(1.2);
+            transition: all 0.5s;
+        }
+        .impact-frame:hover img { filter: grayscale(0%) contrast(1); }
+
+        .impact-frame.full-img {
+            max-height: 60vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+        }
+        .impact-frame.full-img img {
+            height: 100%;
+            max-height: 60vh;
+            object-fit: contain;
+        }
+
+        /* Personagem recortado (PNG transparente), sem moldura */
+        .impact-frame.mentor-cutout {
+            border: none;
+            background: none;
+            box-shadow: none;
+            overflow: visible;
+            max-height: 60vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+        }
+        .impact-frame.mentor-cutout img {
+            height: 100%;
+            max-height: 60vh;
+            width: auto;
+            max-width: 100%;
+            object-fit: contain;
+            background: none;
+            filter: drop-shadow(0 0 25px rgba(0,255,65,0.35));
+            transition: filter 0.5s;
+        }
+        .impact-frame.mentor-cutout:hover img {
+            filter: drop-shadow(0 0 40px rgba(0,255,65,0.55));
+        }
+
+        /* Tipografia */
+        h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: clamp(1.5rem, 4vw, 3.5rem);
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 1rem;
+            text-shadow: 0 0 15px var(--green), 0 0 30px rgba(0,255,65,0.5);
+            color: #fff;
+            padding: 0 1rem;
+        }
+
+        #scene-intro h1 {
+            font-size: clamp(1.1rem, 2.6vw, 2.2rem);
+            margin-bottom: 0.3rem;
+        }
+        #scene-intro h1:last-of-type { margin-bottom: 1rem; }
+
+        .gate-sub {
+            font-size: clamp(0.9rem, 1.8vw, 1.2rem);
+            color: #aaa;
+            margin-bottom: 2rem;
+            padding: 0 1rem;
+            line-height: 1.6;
+        }
+
+        .typewriter {
+            font-size: clamp(0.9rem, 2vw, 1.4rem);
+            line-height: 1.6;
+            min-height: 2.5em;
+            color: #ccc;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin: 0 auto 1.5rem;
+            padding: 0 1rem;
+            max-width: 90%;
+            text-align: center;
+        }
+        .typewriter .cursor {
+            display: inline-block;
+            width: .5ch;
+            background: var(--green);
+            margin-left: 2px;
+            animation: blinkCursor 0.7s step-end infinite;
+            color: transparent;
+        }
+
+        /* =========================================
+           PÍLULAS — brilho e preenchimento no hover
+           isolation: isolate cria um contexto de empilhamento próprio,
+           assim o ::before (z-index: -1) fica ATRÁS do texto mas
+           À FRENTE do fundo do botão (antes ele sumia atrás do fundo).
+           ========================================= */
+        .pills-wrapper {
+            display: flex;
+            gap: 2rem;
+            justify-content: center;
+            margin-top: 1.5rem;
+            flex-wrap: wrap;
+            padding: 0 1rem;
+        }
+
+        .pill {
+            --c: var(--green);
+            --glow: rgba(0,255,65,0.25);
+            background: transparent;
+            color: var(--c);
+            border: 2px solid var(--c);
+            padding: 1.2rem 2rem;
+            font-family: 'Orbitron', sans-serif;
+            font-size: clamp(0.9rem, 1.8vw, 1.2rem);
+            cursor: pointer;
+            transition: color 0.3s, box-shadow 0.3s, transform 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            position: relative;
+            overflow: hidden;
+            isolation: isolate;
+            min-width: 180px;
+            box-shadow: 0 0 14px var(--glow);
+            animation: pillPulse 2.6s ease-in-out infinite;
+        }
+
+        .pill::before {
+            content: '';
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 0; height: 0;
+            background: var(--c);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.5s ease, height 0.5s ease;
+            z-index: -1;
+        }
+
+        .pill:hover,
+        .pill:focus-visible {
+            color: #000;
+            box-shadow: 0 0 40px var(--c);
+            transform: scale(1.05);
+            animation: none;
+        }
+        .pill:hover::before,
+        .pill:focus-visible::before {
+            width: 460px;
+            height: 460px;
+        }
+
+        .pill-red  { --c: var(--red);   --glow: rgba(255,0,60,0.3); }
+        .pill-blue { --c: var(--blue);  --glow: rgba(0,240,255,0.3); }
+        .pill-start { --c: var(--green); --glow: rgba(0,255,65,0.3); }
+
+        @keyframes pillPulse {
+            0%, 100% { box-shadow: 0 0 10px var(--glow); }
+            50%      { box-shadow: 0 0 26px var(--glow); }
+        }
+
+        /* =========================================
+           REVELAÇÃO EM PARES (mito x realidade)
+           ========================================= */
+        .pair-panel {
+            display: none;
+            max-width: 1000px;
+            margin: 1.5rem auto 0;
+        }
+        .pair-panel.active { display: block; }
+
+        .pair-meta {
+            font-size: 0.85rem;
+            letter-spacing: 2px;
+            color: #888;
+            text-transform: uppercase;
+            margin-bottom: 0.8rem;
+        }
+
+        .pair-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1rem;
+            align-items: start;
+        }
+
+        .reveal-panel {
+            display: none;
+            padding: 1.5rem;
+            border: 1px solid;
+            background: rgba(0,0,0,0.9);
+            backdrop-filter: blur(10px);
+            transform: translateY(30px);
+            opacity: 0;
+            transition: opacity 0.6s ease, transform 0.6s ease;
+            max-height: 50vh;
+            overflow-y: auto;
+        }
+        .pair-grid .reveal-panel { margin: 0; max-width: none; }
+        .reveal-panel.active { display: block; }
+        .reveal-panel.show { transform: translateY(0); opacity: 1; }
+
+        .reveal-panel.illusion { border-color: var(--blue); }
+        .reveal-panel.reality { border-color: var(--red); }
+
+        .reveal-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: clamp(1.2rem, 2.5vw, 2rem);
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            position: sticky;
+            top: 0;
+            background: rgba(0,0,0,0.95);
+            padding: 0.5rem 0;
+        }
+        .reveal-panel.illusion .reveal-title { color: var(--blue); text-shadow: 0 0 10px var(--blue); }
+        .reveal-panel.reality .reveal-title { color: var(--red); text-shadow: 0 0 10px var(--red); }
+
+        .reveal-content {
+            font-size: clamp(0.95rem, 1.8vw, 1.3rem);
+            line-height: 1.8;
+            color: #ddd;
+            text-align: left;
+        }
+        .reveal-content p { margin-bottom: 1rem; }
+
+        .reveal-source {
+            font-size: 0.8rem;
+            color: #999;
+            margin-top: 0.5rem;
+            text-align: left;
+        }
+
+        .pair-hint {
+            display: none;
+            margin-top: 1rem;
+            color: #aaa;
+            font-size: 0.95rem;
+            letter-spacing: 1px;
+        }
+        .pair-hint.show { display: block; }
+
+        .next-btn {
+            display: none;
+            margin: 1.2rem auto 0;
+        }
+        .next-btn.show { display: inline-block; }
+
+        .back-btn {
+            margin-top: 1.5rem;
+            background: transparent;
+            border: 1px solid #777;
+            color: #aaa;
+            padding: 0.8rem 2rem;
+            cursor: pointer;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 1rem;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .back-btn:hover { border-color: var(--green); color: var(--green); box-shadow: 0 0 15px rgba(0,255,65,0.2); }
+
+        .final-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+
+        /* Animações */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes blinkCursor { 50% { opacity: 0; } }
+
+        .glitch-transition { animation: glitchAnim 0.4s cubic-bezier(.25, .46, .45, .94) both; }
+        @keyframes glitchAnim {
+            0% { transform: translate(0); filter: hue-rotate(0deg); }
+            20% { transform: translate(-5px, 5px); filter: hue-rotate(90deg); }
+            40% { transform: translate(-5px, -5px); filter: hue-rotate(180deg); }
+            60% { transform: translate(5px, 5px); filter: hue-rotate(270deg); }
+            80% { transform: translate(5px, -5px); filter: hue-rotate(360deg); }
+            100% { transform: translate(0); filter: hue-rotate(0deg); }
+        }
+
+        .reveal-panel::-webkit-scrollbar { width: 6px; }
+        .reveal-panel::-webkit-scrollbar-track { background: rgba(0,0,0,0.5); }
+        .reveal-panel::-webkit-scrollbar-thumb { background: var(--green); border-radius: 3px; }
+
+        /* =========================================
+           RESPONSIVIDADE
+           ========================================= */
+        @media (max-width: 768px) {
+            .hub-container { padding: 1rem 0.5rem; }
+            .pills-wrapper { flex-direction: column; gap: 1rem; align-items: center; }
+            .pill { width: 100%; max-width: 300px; }
+            .impact-frame { max-width: 95%; max-height: 35vh; }
+            .impact-frame img { max-height: 35vh; }
+            .typewriter { font-size: clamp(0.85rem, 2.5vw, 1.2rem); }
+            .back-top-btn { top: 0.5rem; left: 0.5rem; padding: 0.5rem 0.8rem; font-size: 0.8rem; }
+            .reveal-panel { max-height: 60vh; padding: 1rem; }
+            .kbd-hint { display: none; }
+        }
+
+        @media (max-width: 480px) {
+            h1 { font-size: 1.3rem; letter-spacing: 2px; }
+            .reveal-title { font-size: 1.1rem; }
+            .pill { padding: 1rem 1.5rem; font-size: 0.9rem; }
+            .typewriter { font-size: 0.9rem; }
+        }
+
+        @media (min-height: 1000px) {
+            .impact-frame { max-height: 50vh; }
+            .impact-frame img { max-height: 50vh; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Fundo: chuva de código (canvas) -->
+    <canvas id="matrix-rain" aria-hidden="true"></canvas>
+    <div class="video-overlay"></div>
+
+    <!-- CORTINA DE VÍDEO TEMÁTICO
+         EDIT: coloque o arquivo "theme-video.mp4" na mesma pasta deste HTML. -->
+    <div id="theme-video-curtain" class="video-curtain">
+        <video id="theme-video" playsinline preload="metadata">
+            <source src="theme-video.mp4" type="video/mp4">
+        </video>
+        <button class="skip-btn" id="skip-btn" onclick="skipThemeVideo()">Pular ▶</button>
+    </div>
+
+    <!-- MÚSICA DE FUNDO
+         EDIT: coloque o arquivo "intro-music.mp3" na mesma pasta deste HTML.
+         Volumes ajustáveis em CONFIG (musicVolume / musicVolumeUnderVideo). -->
+    <audio id="intro-music" loop preload="auto">
+        <source src="intro-music.mp3" type="audio/mpeg">
+    </audio>
+
+    <!-- CONTROLES FIXOS -->
+    <div class="hud">
+        <button id="btn-mute" onclick="toggleMute()" aria-label="Ativar ou desativar o som" aria-pressed="false" title="Som (M)">🔊</button>
+        <button id="btn-fs" onclick="toggleFullscreen()" aria-label="Tela cheia" title="Tela cheia (F)">⛶</button>
+    </div>
+    <div class="kbd-hint">← → NAVEGAR · 1 / 2 PÍLULAS · F TELA CHEIA · M SOM · ESC REINICIAR</div>
+
+    <!-- =========================================
+         CONTEÚDO DA APRESENTAÇÃO
+         ========================================= -->
+    <div class="hub-container">
+
+        <!-- CENA 0: START GATE (o clique libera áudio e vídeo) -->
+        <div id="scene-gate" class="scene active">
+            <h1>MATRIX IMPACT HUB</h1>
+            <p class="gate-sub">Ligue o som e, se quiser, use a tela cheia (tecla F).</p>
+            <button id="gate-btn" class="pill pill-start" autofocus onclick="startExperience()">ENTRAR NA MATRIX</button>
+        </div>
+
+        <!-- CENA 1: INTRODUÇÃO -->
+        <div id="scene-intro" class="scene">
+            <div class="impact-frame mentor-cutout">
+                <img id="img-intro" alt="O Mentor">
+            </div>
+            <h1>BEM-VINDO</h1>
+            <h1>AO PARADOXO DA REALIDADE</h1>
+            <div class="typewriter" id="intro-text"></div>
+            <button class="pill pill-start" onclick="goToScene('scene-choice')">CLIQUE E DESCUBRA!</button>
+        </div>
+
+        <!-- CENA 2: ESCOLHA -->
+        <div id="scene-choice" class="scene">
+            <button class="back-top-btn" onclick="goToScene('scene-intro')">← VOLTAR</button>
+
+            <div class="impact-frame mentor-cutout" id="choice-frame">
+                <img id="img-choice" alt="O Mentor segurando as pílulas azul e vermelha">
+            </div>
+            <h1>A ESCOLHA É SUA</h1>
+            <div class="typewriter" id="choice-text"></div>
+
+            <div class="pills-wrapper">
+                <button class="pill pill-blue" onclick="reveal('illusion')" aria-label="Pílula azul: a ilusão confortável">
+                    PÍLULA AZUL<br><small style="font-size:0.7em;opacity:0.8;display:block;margin-top:5px;">A ILUSÃO CONFORTÁVEL</small>
+                </button>
+                <button class="pill pill-red" onclick="reveal('reality')" aria-label="Pílula vermelha: a realidade crua">
+                    PÍLULA VERMELHA<br><small style="font-size:0.7em;opacity:0.8;display:block;margin-top:5px;">A REALIDADE CRUA</small>
+                </button>
+            </div>
+
+            <!-- PAR MITO x REALIDADE -->
+            <div id="pair-panel" class="pair-panel" aria-live="polite">
+                <div class="pair-meta" id="pair-counter"></div>
+                <div class="pair-grid">
+                    <div id="panel-illusion" class="reveal-panel illusion">
+                        <div class="reveal-title">💊 A ILUSÃO</div>
+                        <div class="reveal-content" id="content-illusion"></div>
+                    </div>
+                    <div id="panel-reality" class="reveal-panel reality">
+                        <div class="reveal-title">💊 A REALIDADE</div>
+                        <div class="reveal-content" id="content-reality"></div>
+                        <div class="reveal-source" id="source-reality"></div>
+                    </div>
+                </div>
+                <div class="pair-hint" id="pair-hint"></div>
+                <button id="next-btn" class="pill pill-start next-btn" onclick="nextPair()">PRÓXIMO PAR →</button>
+            </div>
+
+            <button class="back-btn" onclick="resetHub()">↺ RESETAR SIMULAÇÃO</button>
+        </div>
+
+        <!-- CENA 3: FECHAMENTO -->
+        <div id="scene-final" class="scene">
+            <h1>E AGORA?</h1>
+            <div class="typewriter" id="final-text"></div>
+            <div class="final-actions">
+                <button class="back-btn" onclick="goToScene('scene-choice')">← REVER AS PÍLULAS</button>
+                <button class="back-btn" onclick="resetHub()">↺ RECOMEÇAR</button>
+            </div>
+        </div>
+
+    </div>
+
+<script>
+// ==========================================
+// CONFIGURAÇÃO
+// ==========================================
+const CONFIG = {
+    introText: "Você está aqui porque sabe algo. Você sente que há algo errado... Hoje, vamos explorar duas perspectivas...",
+    choiceText: "Pílula Azul: acorde e acredite no que quiser. Pílula Vermelha: veja quão fundo vai a toca do coelho.",
+    // EDIT: textos da cena final
+    finalTextBoth: "Você viu os dois lados. A ilusão conforta; a realidade informa. O que você vai fazer com isso agora?",
+    finalTextPartial: "Você viu apenas um lado da história. Volte e escolha a outra pílula antes de decidir.",
+    typingSpeed: 40,
+
+    // ÁUDIO
+    musicEnabled: true,
+    musicVolume: 0.15,           // volume da música nas cenas (0 a 1)
+    musicVolumeUnderVideo: 0.04, // volume da música DURANTE o vídeo (fica bem baixinho)
+    videoVolume: 1.0,            // volume do áudio do vídeo temático
+    musicFadeMs: 1200,           // duração da transição de volume
+
+    idleCursorMs: 3000           // esconde o cursor após esse tempo parado
+};
+
+// ==========================================
+// CONTEÚDO — PARES MITO (azul) x REALIDADE (vermelha)
+// Cada par aparece junto. Para adicionar mais, copie o bloco
+// de exemplo abaixo. Pares com campo vazio são ignorados.
+// "source" é opcional: coloque a fonte do dado (aparece embaixo
+// da realidade).
+// ==========================================
+const PAIRS = [
+    {
+        illusion: `<p>📊 "O mercado sempre sobe no longo prazo."</p>
+                   <p>"Basta trabalhar duro que o sucesso vem."</p>
+                   <p>⚠️ <em>(Dados superficiais, mitos populares, narrativas confortáveis)</em></p>`,
+        reality:  `<p>📉 "70% dos traders perdem dinheiro nos primeiros 2 anos."</p>
+                   <p>🔍 "Sucesso = Estratégia + Timing + Resiliência, não apenas esforço."</p>
+                   <p>✅ <em>(Dados reais, verdades inconvenientes, insights acionáveis)</em></p>`,
+        source: ``   // EDIT: ex.: "Fonte: autor, estudo, ano"
+    }
+    /* ,{
+        illusion: `<p>EDIT: mito</p>`,
+        reality:  `<p>EDIT: realidade</p>`,
+        source: ``
+    } */
+];
+
+const ACTIVE_PAIRS = PAIRS.filter(p => p.illusion.trim() && p.reality.trim());
+
+// ==========================================
+// ESTADO
+// ==========================================
+let currentScene = 'scene-gate';
+let started = false;
+let curtainActive = false;
+let pairIndex = 0;
+let pairState = { illusion: false, reality: false };
+let visited = { illusion: false, reality: false };
+const state = { muted: false };
+
+const introMusic = document.getElementById('intro-music');
+const themeVideo = document.getElementById('theme-video');
+introMusic.volume = 0;
+
+// ==========================================
+// CARREGADOR ROBUSTO DE IMAGENS
+// ==========================================
+function loadImageWithFallback(imgId, baseName, extensions = ['jpg','jpeg','png','webp']) {
+    const img = document.getElementById(imgId);
+    if (!img) return;
+    let i = 0;
+    img.onerror = function () {
+        i++;
+        if (i < extensions.length) {
+            img.src = `${baseName}.${extensions[i]}`;
+        } else {
+            const frame = img.closest('.impact-frame');
+            if (frame) {
+                frame.innerHTML = `<div style="padding:2rem;color:#ff003c;font-size:0.9rem;line-height:1.6;">
+                    ⚠️ IMAGEM NÃO ENCONTRADA<br>
+                    <span style="color:#888;">Esperado: ${baseName}.(jpg/png/webp) na mesma pasta do HTML</span>
+                </div>`;
+                frame.style.border = '1px dashed #ff003c';
+                frame.style.background = 'rgba(255,0,60,0.05)';
+            }
+        }
+    };
+    img.src = `${baseName}.${extensions[0]}`;
+}
+
+// ==========================================
+// CHUVA DE CÓDIGO (CANVAS)
+// ==========================================
+const rain = (() => {
+    const canvas = document.getElementById('matrix-rain');
+    const ctx = canvas.getContext('2d');
+    const glyphs = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789'.split('');
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let w = 0, h = 0, fontSize = 16, cols = 0, drops = [], last = 0, raf = null, resizeTimer;
+
+    function resize() {
+        const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+        w = window.innerWidth;
+        h = window.innerHeight;
+        canvas.width = Math.floor(w * dpr);
+        canvas.height = Math.floor(h * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        fontSize = w < 600 ? 14 : 16;
+        cols = Math.ceil(w / fontSize);
+        drops = Array.from({ length: cols }, () => Math.floor(Math.random() * (h / fontSize)));
+        ctx.fillStyle = '#050505';
+        ctx.fillRect(0, 0, w, h);
+    }
+
+    function draw() {
+        ctx.fillStyle = 'rgba(5,5,5,0.09)';
+        ctx.fillRect(0, 0, w, h);
+        ctx.font = fontSize + 'px "Share Tech Mono", monospace';
+        for (let i = 0; i < cols; i++) {
+            const ch = glyphs[Math.floor(Math.random() * glyphs.length)];
+            const x = i * fontSize;
+            const y = drops[i] * fontSize;
+            ctx.fillStyle = Math.random() < 0.05 ? '#d8ffe0' : '#00ff41';
+            ctx.fillText(ch, x, y);
+            if (y > h && Math.random() > 0.975) drops[i] = 0;
+            drops[i]++;
+        }
+    }
+
+    function frame(t) {
+        raf = requestAnimationFrame(frame);
+        if (t - last < 45) return; // ~22 quadros por segundo
+        last = t;
+        draw();
+    }
+
+    function start() {
+        resize();
+        if (reduceMotion) {
+            // Sem animação: desenha alguns quadros e para
+            for (let i = 0; i < 60; i++) draw();
+            return;
+        }
+        if (!raf) raf = requestAnimationFrame(frame);
+    }
+
+    function stop() {
+        if (raf) { cancelAnimationFrame(raf); raf = null; }
+    }
+
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+            resize();
+            if (reduceMotion) for (let i = 0; i < 60; i++) draw();
+        }, 150);
+    });
+
+    document.addEventListener('visibilitychange', () => {
+        if (reduceMotion) return;
+        if (document.hidden) stop(); else if (!raf) raf = requestAnimationFrame(frame);
+    });
+
+    return { start, stop };
+})();
+
+// ==========================================
+// ÁUDIO: música de fundo com volume controlado
+// A música toca baixinho por baixo do áudio do vídeo e sobe
+// suavemente quando o vídeo termina.
+// ==========================================
+let fadeTimer = null;
+
+function fadeMusicTo(target, ms = CONFIG.musicFadeMs) {
+    clearInterval(fadeTimer);
+    const start = introMusic.volume;
+    const t0 = performance.now();
+    fadeTimer = setInterval(() => {
+        const k = Math.min(1, (performance.now() - t0) / ms);
+        introMusic.volume = Math.max(0, Math.min(1, start + (target - start) * k));
+        if (k >= 1) {
+            clearInterval(fadeTimer);
+            if (target === 0) introMusic.pause();
+        }
+    }, 50);
+}
+
+function startMusic(target) {
+    if (!CONFIG.musicEnabled) return;
+    if (introMusic.paused) {
+        introMusic.volume = 0;
+        introMusic.play().catch(() => {});
+    }
+    fadeMusicTo(target);
+}
+
+function toggleMute() {
+    state.muted = !state.muted;
+    introMusic.muted = state.muted;
+    themeVideo.muted = state.muted;
+    const btn = document.getElementById('btn-mute');
+    btn.textContent = state.muted ? '🔇' : '🔊';
+    btn.setAttribute('aria-pressed', String(state.muted));
+}
+
+function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+        const p = document.documentElement.requestFullscreen && document.documentElement.requestFullscreen();
+        if (p && p.catch) p.catch(() => {});
+    } else if (document.exitFullscreen) {
+        document.exitFullscreen();
+    }
+}
+
+// ==========================================
+// CORTINA DE VÍDEO TEMÁTICO
+// ==========================================
+let skipThemeVideo = () => {};
+
+function playThemeVideoCurtain(onDone) {
+    const curtain = document.getElementById('theme-video-curtain');
+    const source = themeVideo.querySelector('source');
+    let finished = false;
+    let safety = null;
+
+    function finish() {
+        if (finished) return;
+        finished = true;
+        clearTimeout(safety);
+        themeVideo.pause();
+        curtainActive = false;
+        curtain.classList.remove('active');
+        if (!introMusic.paused) fadeMusicTo(CONFIG.musicVolume);
+        setTimeout(onDone, 1000); // espera a cortina descer
+    }
+
+    skipThemeVideo = finish;
+    curtainActive = true;
+
+    themeVideo.currentTime = 0;
+    themeVideo.volume = CONFIG.videoVolume;
+    themeVideo.muted = state.muted;
+    themeVideo.onended = finish;
+    themeVideo.onerror = finish;
+    if (source) source.addEventListener('error', finish, { once: true });
+
+    // Se o vídeo travar carregando, não deixa a tela presa
+    safety = setTimeout(finish, 8000);
+    themeVideo.addEventListener('playing', () => clearTimeout(safety), { once: true });
+
+    requestAnimationFrame(() => curtain.classList.add('active'));
+
+    themeVideo.play().catch(() => {
+        // Som bloqueado: tenta mudo e libera no próximo clique
+        themeVideo.muted = true;
+        themeVideo.play().catch(finish);
+        document.addEventListener('click', function unmute() {
+            if (!state.muted) themeVideo.muted = false;
+        }, { once: true });
+    });
+}
+
+// ==========================================
+// EFEITO DE DIGITAÇÃO (cancela digitações anteriores)
+// ==========================================
+function typeWriter(elementId, text, speed = CONFIG.typingSpeed) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    const token = el._tw = (el._tw || 0) + 1;
+    el.textContent = '';
+    let i = 0;
+    (function step() {
+        if (el._tw !== token) return; // outra digitação assumiu
+        if (i < text.length) {
+            el.textContent = text.slice(0, ++i);
+            setTimeout(step, speed);
+        } else {
+            el.innerHTML = '';
+            el.appendChild(document.createTextNode(text));
+            const c = document.createElement('span');
+            c.className = 'cursor';
+            c.textContent = '|';
+            el.appendChild(c);
+        }
+    })();
+}
+
+// ==========================================
+// NAVEGAÇÃO DE CENAS
+// ==========================================
+function showScene(sceneId) {
+    document.querySelectorAll('.scene').forEach(s => s.classList.remove('active'));
+    const target = document.getElementById(sceneId);
+    if (target) {
+        target.classList.add('active');
+        currentScene = sceneId;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+}
+
+function goToScene(sceneId) {
+    showScene(sceneId);
+
+    if (sceneId === 'scene-intro') {
+        setTimeout(() => typeWriter('intro-text', CONFIG.introText), 500);
+        startMusic(CONFIG.musicVolume);
+    } else if (sceneId === 'scene-choice') {
+        setTimeout(() => typeWriter('choice-text', CONFIG.choiceText), 500);
+        fadeMusicTo(0);
+    } else if (sceneId === 'scene-final') {
+        const both = visited.illusion && visited.reality;
+        setTimeout(() => typeWriter('final-text', both ? CONFIG.finalTextBoth : CONFIG.finalTextPartial), 500);
+        fadeMusicTo(0);
+    }
+}
+
+function startExperience() {
+    if (started) return;
+    started = true;
+    showScene('scene-intro'); // fica por baixo da cortina
+    startMusic(CONFIG.musicVolumeUnderVideo);
+    playThemeVideoCurtain(() => {
+        setTimeout(() => typeWriter('intro-text', CONFIG.introText), 300);
+    });
+}
+
+// ==========================================
+// REVELAÇÃO EM PARES
+// ==========================================
+function glitch() {
+    const hub = document.querySelector('.hub-container');
+    hub.classList.add('glitch-transition');
+    setTimeout(() => hub.classList.remove('glitch-transition'), 400);
+}
+
+function hidePairColumns() {
+    ['illusion', 'reality'].forEach(t => {
+        document.getElementById(`panel-${t}`).classList.remove('show', 'active');
+    });
+    pairState = { illusion: false, reality: false };
+}
+
+function renderPair() {
+    const pair = ACTIVE_PAIRS[pairIndex];
+    if (!pair) return;
+    document.getElementById('content-illusion').innerHTML = pair.illusion;
+    document.getElementById('content-reality').innerHTML = pair.reality;
+    document.getElementById('source-reality').textContent = pair.source || '';
+    document.getElementById('pair-counter').textContent = `PAR ${pairIndex + 1} / ${ACTIVE_PAIRS.length}`;
+    updatePairControls();
+}
+
+function updatePairControls() {
+    const both = pairState.illusion && pairState.reality;
+    const one = pairState.illusion !== pairState.reality;
+    const isLast = pairIndex >= ACTIVE_PAIRS.length - 1;
+
+    document.getElementById('pair-panel').classList.toggle('active', pairState.illusion || pairState.reality);
+
+    const hint = document.getElementById('pair-hint');
+    if (one) {
+        hint.textContent = pairState.illusion
+            ? 'Agora veja o outro lado: escolha a pílula vermelha.'
+            : 'Agora veja o outro lado: escolha a pílula azul.';
+    }
+    hint.classList.toggle('show', one);
+
+    const nextBtn = document.getElementById('next-btn');
+    nextBtn.textContent = isLast ? 'CONCLUIR →' : 'PRÓXIMO PAR →';
+    nextBtn.classList.toggle('show', both);
+}
+
+function reveal(type) {
+    if (!ACTIVE_PAIRS.length) return;
+    glitch();
+    setTimeout(() => {
+        pairState[type] = true;
+        visited[type] = true;
+        const col = document.getElementById(`panel-${type}`);
+        col.classList.add('active');
+        requestAnimationFrame(() => col.classList.add('show'));
+        updatePairControls();
+        setTimeout(() => col.scrollIntoView({ behavior: 'smooth', block: 'center' }), 200);
+    }, 300);
+}
+
+function nextPair() {
+    if (pairIndex >= ACTIVE_PAIRS.length - 1) {
+        goToScene('scene-final');
+        return;
+    }
+    pairIndex++;
+    hidePairColumns();
+    renderPair();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function resetHub() {
+    pairIndex = 0;
+    visited = { illusion: false, reality: false };
+    hidePairColumns();
+    renderPair();
+    goToScene('scene-intro');
+}
+
+// ==========================================
+// NAVEGAÇÃO POR TECLADO
+// ==========================================
+function next() {
+    if (curtainActive) return;
+    switch (currentScene) {
+        case 'scene-gate': startExperience(); break;
+        case 'scene-intro': goToScene('scene-choice'); break;
+        case 'scene-choice':
+            if (!pairState.illusion) reveal('illusion');
+            else if (!pairState.reality) reveal('reality');
+            else nextPair();
+            break;
+    }
+}
+
+function prev() {
+    if (curtainActive) return;
+    if (currentScene === 'scene-choice') goToScene('scene-intro');
+    else if (currentScene === 'scene-final') goToScene('scene-choice');
+}
+
+document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const onButton = e.target && e.target.closest && e.target.closest('button');
+    switch (e.key) {
+        case 'ArrowRight':
+            e.preventDefault(); next(); break;
+        case ' ':
+            if (!onButton) { e.preventDefault(); next(); }
+            break;
+        case 'ArrowLeft':
+            e.preventDefault(); prev(); break;
+        case 'f': case 'F':
+            toggleFullscreen(); break;
+        case 'm': case 'M':
+            toggleMute(); break;
+        case '1':
+            if (currentScene === 'scene-choice') reveal('illusion'); break;
+        case '2':
+            if (currentScene === 'scene-choice') reveal('reality'); break;
+        case 'Escape':
+            if (curtainActive) skipThemeVideo();
+            else if (currentScene !== 'scene-gate') resetHub();
+            break;
+    }
+});
+
+// ==========================================
+// CURSOR OCULTO APÓS INATIVIDADE
+// ==========================================
+let idleTimer;
+function wake() {
+    document.body.classList.remove('idle');
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => document.body.classList.add('idle'), CONFIG.idleCursorMs);
+}
+['mousemove', 'mousedown', 'keydown', 'touchstart'].forEach(ev => document.addEventListener(ev, wake, { passive: true }));
+
+// ==========================================
+// INICIALIZAÇÃO
+// ==========================================
+window.addEventListener('DOMContentLoaded', () => {
+    loadImageWithFallback('img-intro', 'morpheus-dialogue');
+    loadImageWithFallback('img-choice', 'morpheus-pills');
+    rain.start();
+    renderPair();
+    wake();
+    const gateBtn = document.getElementById('gate-btn');
+    if (gateBtn) gateBtn.focus();
+});
+</script>
+</body>
+</html>
